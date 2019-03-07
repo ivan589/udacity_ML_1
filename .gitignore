@@ -1,0 +1,10 @@
+*.csv
+*.py
+*.md
+*.png
+*.yml
+*.jpg
+*.hdf5
+*.txt
+*.pdf
+*.pyc
