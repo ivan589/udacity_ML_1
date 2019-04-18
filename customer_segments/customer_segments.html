@@ -14967,8 +14967,8 @@ raw_data: 440, good_data: 398, outliers: 48
 <p><strong>Answer:</strong></p>
 <p>The group in <strong>Segment 1</strong> will be the most impacted, since those are cafes or delis, they will have to adjust their production and purchasing to the fixed days, instead of having more flexibility, specially that they buy more Fresh.</p>
 <p>But, we can use the former cluster to calculate what that cluster represents in terms of total purchasing power vs. logistic saving from reducing the delivery days.</p>
-<p>I think that for the A/B test, we should try with around <strong>25% of customers in the new reduced delivery</strong> window, and the rest 75% of customers in the current one.
-<strong>The group in the new delivery window should be composed of half customers from Segment 0 and the other half from Segment 1.</strong> In this case, we can observe how a sample of each Segment reacts to the new delivery window. In order to select a varied sample from each Segement we can do a random selection and check that the sample variance resembles the Segemnt variance.</p>
+<p>I think that for the A/B test, we should <strong>split each cluster in half</strong> and try out the new delivery window for one half per cluster, and the other half will the control group.
+We should also check that the each half of each cluster retains a similar variance to the whole cluster.</p>
 
 </div>
 </div>
