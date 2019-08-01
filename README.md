@@ -55,8 +55,6 @@ In the code cell below, we import a dataset of dog images.  We populate a few va
 
 
 ```python
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from sklearn.datasets import load_files       
 from keras.utils import np_utils
 import numpy as np
@@ -245,6 +243,23 @@ from keras.applications.resnet50 import ResNet50
 ResNet50_model = ResNet50(weights='imagenet')
 ```
 
+    WARNING: Logging before flag parsing goes to stderr.
+    W0801 10:08:48.636358 4552115648 deprecation_wrapper.py:119] From /Users/ivan/anaconda3/lib/python3.7/site-packages/keras/backend/tensorflow_backend.py:74: The name tf.get_default_graph is deprecated. Please use tf.compat.v1.get_default_graph instead.
+    
+    W0801 10:08:48.647337 4552115648 deprecation_wrapper.py:119] From /Users/ivan/anaconda3/lib/python3.7/site-packages/keras/backend/tensorflow_backend.py:517: The name tf.placeholder is deprecated. Please use tf.compat.v1.placeholder instead.
+    
+    W0801 10:08:48.650693 4552115648 deprecation_wrapper.py:119] From /Users/ivan/anaconda3/lib/python3.7/site-packages/keras/backend/tensorflow_backend.py:4185: The name tf.truncated_normal is deprecated. Please use tf.random.truncated_normal instead.
+    
+    W0801 10:08:48.677102 4552115648 deprecation_wrapper.py:119] From /Users/ivan/anaconda3/lib/python3.7/site-packages/keras/backend/tensorflow_backend.py:174: The name tf.get_default_session is deprecated. Please use tf.compat.v1.get_default_session instead.
+    
+    W0801 10:08:48.677669 4552115648 deprecation_wrapper.py:119] From /Users/ivan/anaconda3/lib/python3.7/site-packages/keras/backend/tensorflow_backend.py:181: The name tf.ConfigProto is deprecated. Please use tf.compat.v1.ConfigProto instead.
+    
+    W0801 10:08:48.698510 4552115648 deprecation_wrapper.py:119] From /Users/ivan/anaconda3/lib/python3.7/site-packages/keras/backend/tensorflow_backend.py:1834: The name tf.nn.fused_batch_norm is deprecated. Please use tf.compat.v1.nn.fused_batch_norm instead.
+    
+    W0801 10:08:48.755431 4552115648 deprecation_wrapper.py:119] From /Users/ivan/anaconda3/lib/python3.7/site-packages/keras/backend/tensorflow_backend.py:3976: The name tf.nn.max_pool is deprecated. Please use tf.nn.max_pool2d instead.
+    
+
+
 ### Pre-process the Data
 
 When using TensorFlow as backend, Keras CNNs require a 4D array (which we'll also refer to as a 4D tensor) as input, with shape
@@ -396,9 +411,9 @@ valid_tensors = paths_to_tensor(valid_files).astype('float32')/255
 test_tensors = paths_to_tensor(test_files).astype('float32')/255
 ```
 
-    100%|██████████| 6680/6680 [00:46<00:00, 143.06it/s]
-    100%|██████████| 835/835 [00:06<00:00, 131.97it/s]
-    100%|██████████| 836/836 [00:06<00:00, 132.89it/s]
+    100%|██████████| 6680/6680 [00:40<00:00, 165.90it/s]
+    100%|██████████| 835/835 [00:06<00:00, 137.61it/s]
+    100%|██████████| 836/836 [00:05<00:00, 140.21it/s]
 
 
 ### (IMPLEMENTATION) Model Architecture
@@ -415,9 +430,6 @@ __Question 4:__ Outline the steps you took to get to your final CNN architecture
 
 __Answer:__ 
 
-- `GlobalAveragePooling2D` is chosen instead of `Flatten`, this will result in a smaller Dense layer afterwards, which is less expensive and may result in less overfitting. Also `Flatten` will perform better (I think) with bigger data sets.
-- Dropout was used before using the fully connected layer to reduce overfitting.
-
 
 ```python
 from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
@@ -429,11 +441,29 @@ model = Sequential()
 ### TODO: Define your architecture.
 
 model = Sequential()
-model.add(GlobalAveragePooling2D(input_shape=(train_tensors.shape[1:])))
-model.add(Dense(1024, activation='relu'))
-model.add(Dropout(0.3))
-model.add(Dense(512, activation='relu'))
-model.add(Dropout(0.3))
+
+# STEP 1 - Convolution: 
+# Extract features from the input image. 
+# Convolution preserves the spatial relationship between pixels by learning image features 
+# using small squares of input data
+model.add( Conv2D(32, (2, 2), input_shape=train_tensors.shape[1:], activation='relu') )
+
+# STEP 2 - Pooling or Downsampling:
+# Reduces the dimensionality of each feature map but retains the most important information
+model.add( MaxPooling2D(pool_size=(2, 2)) )
+
+model.add( Conv2D(64, (2, 2), input_shape=train_tensors.shape[1:], activation='relu') )
+model.add( MaxPooling2D(pool_size=(2, 2)) )
+
+# STEP 3 - Flattening:
+# The matrix is converted into a linear array (INPUT of the nodes of the neural network)
+model.add( GlobalAveragePooling2D() )
+
+
+# STEP 4 - Connection:
+# Connect the Convolutional Network into the Neural Network
+
+# Last layer of the Neural Network has as many nodes as dog categories
 model.add(Dense(len(dog_names), activation='softmax'))
 
 
@@ -443,20 +473,20 @@ model.summary()
     _________________________________________________________________
     Layer (type)                 Output Shape              Param #   
     =================================================================
-    global_average_pooling2d_11  (None, 3)                 0         
+    conv2d_13 (Conv2D)           (None, 223, 223, 32)      416       
     _________________________________________________________________
-    dense_20 (Dense)             (None, 1024)              4096      
+    max_pooling2d_14 (MaxPooling (None, 111, 111, 32)      0         
     _________________________________________________________________
-    dropout_12 (Dropout)         (None, 1024)              0         
+    conv2d_14 (Conv2D)           (None, 110, 110, 64)      8256      
     _________________________________________________________________
-    dense_21 (Dense)             (None, 512)               524800    
+    max_pooling2d_15 (MaxPooling (None, 55, 55, 64)        0         
     _________________________________________________________________
-    dropout_13 (Dropout)         (None, 512)               0         
+    global_average_pooling2d_9 ( (None, 64)                0         
     _________________________________________________________________
-    dense_22 (Dense)             (None, 133)               68229     
+    dense_14 (Dense)             (None, 133)               8645      
     =================================================================
-    Total params: 597,125
-    Trainable params: 597,125
+    Total params: 17,317
+    Trainable params: 17,317
     Non-trainable params: 0
     _________________________________________________________________
 
@@ -492,33 +522,38 @@ model.fit(train_tensors, train_targets,
           epochs=epochs, batch_size=20, callbacks=[checkpointer], verbose=1)
 ```
 
+    W0801 10:14:14.182360 4552115648 deprecation.py:323] From /Users/ivan/.local/lib/python3.7/site-packages/tensorflow/python/ops/math_grad.py:1250: add_dispatch_support.<locals>.wrapper (from tensorflow.python.ops.array_ops) is deprecated and will be removed in a future version.
+    Instructions for updating:
+    Use tf.where in 2.0, which has the same broadcast rule as np.where
+
+
     Train on 6680 samples, validate on 835 samples
     Epoch 1/5
-    6680/6680 [==============================] - 6s 919us/step - loss: 4.8826 - acc: 0.0094 - val_loss: 4.8674 - val_acc: 0.0096
+    6680/6680 [==============================] - 102s 15ms/step - loss: 4.8838 - acc: 0.0093 - val_loss: 4.8677 - val_acc: 0.0108
     
-    Epoch 00001: val_loss improved from inf to 4.86741, saving model to saved_models/weights.best.from_scratch.hdf5
+    Epoch 00001: val_loss improved from inf to 4.86773, saving model to saved_models/weights.best.from_scratch.hdf5
     Epoch 2/5
-    6680/6680 [==============================] - 5s 726us/step - loss: 4.8648 - acc: 0.0120 - val_loss: 4.8561 - val_acc: 0.0156
+    6680/6680 [==============================] - 105s 16ms/step - loss: 4.8645 - acc: 0.0130 - val_loss: 4.8539 - val_acc: 0.0168
     
-    Epoch 00002: val_loss improved from 4.86741 to 4.85611, saving model to saved_models/weights.best.from_scratch.hdf5
+    Epoch 00002: val_loss improved from 4.86773 to 4.85386, saving model to saved_models/weights.best.from_scratch.hdf5
     Epoch 3/5
-    6680/6680 [==============================] - 5s 728us/step - loss: 4.8381 - acc: 0.0169 - val_loss: 4.8348 - val_acc: 0.0180
+    6680/6680 [==============================] - 105s 16ms/step - loss: 4.8386 - acc: 0.0160 - val_loss: 4.8320 - val_acc: 0.0192
     
-    Epoch 00003: val_loss improved from 4.85611 to 4.83479, saving model to saved_models/weights.best.from_scratch.hdf5
+    Epoch 00003: val_loss improved from 4.85386 to 4.83200, saving model to saved_models/weights.best.from_scratch.hdf5
     Epoch 4/5
-    6680/6680 [==============================] - 5s 735us/step - loss: 4.8214 - acc: 0.0171 - val_loss: 4.8262 - val_acc: 0.0168
+    6680/6680 [==============================] - 107s 16ms/step - loss: 4.8082 - acc: 0.0190 - val_loss: 4.8138 - val_acc: 0.0228
     
-    Epoch 00004: val_loss improved from 4.83479 to 4.82615, saving model to saved_models/weights.best.from_scratch.hdf5
+    Epoch 00004: val_loss improved from 4.83200 to 4.81383, saving model to saved_models/weights.best.from_scratch.hdf5
     Epoch 5/5
-    6680/6680 [==============================] - 5s 738us/step - loss: 4.8106 - acc: 0.0175 - val_loss: 4.8693 - val_acc: 0.0120
+    6680/6680 [==============================] - 107s 16ms/step - loss: 4.7820 - acc: 0.0210 - val_loss: 4.7958 - val_acc: 0.0156
     
-    Epoch 00005: val_loss did not improve from 4.82615
+    Epoch 00005: val_loss improved from 4.81383 to 4.79577, saving model to saved_models/weights.best.from_scratch.hdf5
 
 
 
 
 
-    <keras.callbacks.History at 0x1a417f1b00>
+    <keras.callbacks.History at 0x1a452cd320>
 
 
 
@@ -543,7 +578,7 @@ test_accuracy = 100*np.sum(np.array(dog_breed_predictions)==np.argmax(test_targe
 print('Test accuracy: %.4f%%' % test_accuracy)
 ```
 
-    Test accuracy: 1.7943%
+    Test accuracy: 2.0335%
 
 
 ---
@@ -578,9 +613,9 @@ VGG16_model.summary()
     _________________________________________________________________
     Layer (type)                 Output Shape              Param #   
     =================================================================
-    global_average_pooling2d_12  (None, 512)               0         
+    global_average_pooling2d_10  (None, 512)               0         
     _________________________________________________________________
-    dense_23 (Dense)             (None, 133)               68229     
+    dense_15 (Dense)             (None, 133)               68229     
     =================================================================
     Total params: 68,229
     Trainable params: 68,229
@@ -609,91 +644,91 @@ VGG16_model.fit(train_VGG16, train_targets,
 
     Train on 6680 samples, validate on 835 samples
     Epoch 1/20
-    6680/6680 [==============================] - 2s 315us/step - loss: 11.8928 - acc: 0.1326 - val_loss: 9.8560 - val_acc: 0.2695
+    6680/6680 [==============================] - 1s 181us/step - loss: 12.1376 - acc: 0.1317 - val_loss: 10.3619 - val_acc: 0.2419
     
-    Epoch 00001: val_loss improved from inf to 9.85602, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00001: val_loss improved from inf to 10.36192, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 2/20
-    6680/6680 [==============================] - 1s 132us/step - loss: 9.4739 - acc: 0.3081 - val_loss: 9.1976 - val_acc: 0.3269
+    6680/6680 [==============================] - 1s 83us/step - loss: 9.6520 - acc: 0.3030 - val_loss: 9.5252 - val_acc: 0.3042
     
-    Epoch 00002: val_loss improved from 9.85602 to 9.19756, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00002: val_loss improved from 10.36192 to 9.52519, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 3/20
-    6680/6680 [==============================] - 1s 132us/step - loss: 8.6657 - acc: 0.3840 - val_loss: 8.6736 - val_acc: 0.3737
+    6680/6680 [==============================] - 1s 83us/step - loss: 8.9367 - acc: 0.3769 - val_loss: 9.2966 - val_acc: 0.3281
     
-    Epoch 00003: val_loss improved from 9.19756 to 8.67361, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00003: val_loss improved from 9.52519 to 9.29658, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 4/20
-    6680/6680 [==============================] - 1s 145us/step - loss: 8.2767 - acc: 0.4305 - val_loss: 8.5401 - val_acc: 0.3904
+    6680/6680 [==============================] - 1s 82us/step - loss: 8.6131 - acc: 0.4115 - val_loss: 9.0552 - val_acc: 0.3461
     
-    Epoch 00004: val_loss improved from 8.67361 to 8.54009, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00004: val_loss improved from 9.29658 to 9.05518, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 5/20
-    6680/6680 [==============================] - 1s 136us/step - loss: 8.0922 - acc: 0.4563 - val_loss: 8.3145 - val_acc: 0.4072
+    6680/6680 [==============================] - 1s 85us/step - loss: 8.2761 - acc: 0.4359 - val_loss: 8.7261 - val_acc: 0.3737
     
-    Epoch 00005: val_loss improved from 8.54009 to 8.31445, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00005: val_loss improved from 9.05518 to 8.72608, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 6/20
-    6680/6680 [==============================] - 1s 131us/step - loss: 7.9098 - acc: 0.4795 - val_loss: 8.3790 - val_acc: 0.4060
+    6680/6680 [==============================] - 1s 85us/step - loss: 8.0030 - acc: 0.4632 - val_loss: 8.6060 - val_acc: 0.3868
     
-    Epoch 00006: val_loss did not improve from 8.31445
+    Epoch 00006: val_loss improved from 8.72608 to 8.60595, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 7/20
-    6680/6680 [==============================] - 1s 133us/step - loss: 7.7753 - acc: 0.4909 - val_loss: 8.2909 - val_acc: 0.4144
+    6680/6680 [==============================] - 1s 93us/step - loss: 7.8060 - acc: 0.4846 - val_loss: 8.5283 - val_acc: 0.3844
     
-    Epoch 00007: val_loss improved from 8.31445 to 8.29085, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00007: val_loss improved from 8.60595 to 8.52833, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 8/20
-    6680/6680 [==============================] - 1s 142us/step - loss: 7.6755 - acc: 0.5013 - val_loss: 8.1201 - val_acc: 0.4287
+    6680/6680 [==============================] - 1s 86us/step - loss: 7.5708 - acc: 0.4988 - val_loss: 8.1286 - val_acc: 0.4144
     
-    Epoch 00008: val_loss improved from 8.29085 to 8.12005, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00008: val_loss improved from 8.52833 to 8.12863, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 9/20
-    6680/6680 [==============================] - 1s 131us/step - loss: 7.6094 - acc: 0.5096 - val_loss: 8.0812 - val_acc: 0.4455
+    6680/6680 [==============================] - 1s 90us/step - loss: 7.3586 - acc: 0.5192 - val_loss: 8.2164 - val_acc: 0.4168
     
-    Epoch 00009: val_loss improved from 8.12005 to 8.08123, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00009: val_loss did not improve from 8.12863
     Epoch 10/20
-    6680/6680 [==============================] - 1s 136us/step - loss: 7.5123 - acc: 0.5142 - val_loss: 7.9118 - val_acc: 0.4299
+    6680/6680 [==============================] - 1s 87us/step - loss: 7.2732 - acc: 0.5293 - val_loss: 8.0208 - val_acc: 0.4180
     
-    Epoch 00010: val_loss improved from 8.08123 to 7.91180, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00010: val_loss improved from 8.12863 to 8.02079, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 11/20
-    6680/6680 [==============================] - 1s 138us/step - loss: 7.1397 - acc: 0.5280 - val_loss: 7.6474 - val_acc: 0.4623
+    6680/6680 [==============================] - 1s 86us/step - loss: 7.0945 - acc: 0.5400 - val_loss: 7.9635 - val_acc: 0.4204
     
-    Epoch 00011: val_loss improved from 7.91180 to 7.64737, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00011: val_loss improved from 8.02079 to 7.96347, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 12/20
-    6680/6680 [==============================] - 1s 137us/step - loss: 7.0059 - acc: 0.5509 - val_loss: 7.6966 - val_acc: 0.4587
+    6680/6680 [==============================] - 1s 90us/step - loss: 6.8003 - acc: 0.5464 - val_loss: 7.5285 - val_acc: 0.4503
     
-    Epoch 00012: val_loss did not improve from 7.64737
+    Epoch 00012: val_loss improved from 7.96347 to 7.52850, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 13/20
-    6680/6680 [==============================] - 1s 136us/step - loss: 6.9669 - acc: 0.5579 - val_loss: 7.6291 - val_acc: 0.4599
+    6680/6680 [==============================] - 1s 87us/step - loss: 6.5498 - acc: 0.5713 - val_loss: 7.3943 - val_acc: 0.4647
     
-    Epoch 00013: val_loss improved from 7.64737 to 7.62912, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00013: val_loss improved from 7.52850 to 7.39433, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 14/20
-    6680/6680 [==============================] - 1s 131us/step - loss: 6.8874 - acc: 0.5600 - val_loss: 7.4160 - val_acc: 0.4599
+    6680/6680 [==============================] - 1s 85us/step - loss: 6.3973 - acc: 0.5852 - val_loss: 7.3724 - val_acc: 0.4695
     
-    Epoch 00014: val_loss improved from 7.62912 to 7.41604, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00014: val_loss improved from 7.39433 to 7.37241, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 15/20
-    6680/6680 [==============================] - 1s 140us/step - loss: 6.7895 - acc: 0.5672 - val_loss: 7.3808 - val_acc: 0.4814
+    6680/6680 [==============================] - 1s 86us/step - loss: 6.2456 - acc: 0.5931 - val_loss: 7.0533 - val_acc: 0.4802
     
-    Epoch 00015: val_loss improved from 7.41604 to 7.38081, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00015: val_loss improved from 7.37241 to 7.05328, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 16/20
-    6680/6680 [==============================] - 1s 131us/step - loss: 6.7564 - acc: 0.5732 - val_loss: 7.2789 - val_acc: 0.4814
+    6680/6680 [==============================] - 1s 93us/step - loss: 6.0167 - acc: 0.6060 - val_loss: 7.0415 - val_acc: 0.4778
     
-    Epoch 00016: val_loss improved from 7.38081 to 7.27889, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00016: val_loss improved from 7.05328 to 7.04155, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 17/20
-    6680/6680 [==============================] - 1s 135us/step - loss: 6.7071 - acc: 0.5729 - val_loss: 7.2302 - val_acc: 0.4934
+    6680/6680 [==============================] - 1s 86us/step - loss: 5.9314 - acc: 0.6175 - val_loss: 6.9152 - val_acc: 0.4970
     
-    Epoch 00017: val_loss improved from 7.27889 to 7.23019, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00017: val_loss improved from 7.04155 to 6.91520, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 18/20
-    6680/6680 [==============================] - 1s 131us/step - loss: 6.6280 - acc: 0.5792 - val_loss: 7.3067 - val_acc: 0.4838
+    6680/6680 [==============================] - 1s 86us/step - loss: 5.8804 - acc: 0.6219 - val_loss: 6.9135 - val_acc: 0.5018
     
-    Epoch 00018: val_loss did not improve from 7.23019
+    Epoch 00018: val_loss improved from 6.91520 to 6.91346, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 19/20
-    6680/6680 [==============================] - 1s 132us/step - loss: 6.5147 - acc: 0.5835 - val_loss: 7.2197 - val_acc: 0.4862
+    6680/6680 [==============================] - 1s 92us/step - loss: 5.8216 - acc: 0.6232 - val_loss: 6.8787 - val_acc: 0.4802
     
-    Epoch 00019: val_loss improved from 7.23019 to 7.21971, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00019: val_loss improved from 6.91346 to 6.87866, saving model to saved_models/weights.best.VGG16.hdf5
     Epoch 20/20
-    6680/6680 [==============================] - 1s 143us/step - loss: 6.3634 - acc: 0.5895 - val_loss: 7.1193 - val_acc: 0.4850
+    6680/6680 [==============================] - 1s 89us/step - loss: 5.6179 - acc: 0.6349 - val_loss: 6.8219 - val_acc: 0.5042
     
-    Epoch 00020: val_loss improved from 7.21971 to 7.11928, saving model to saved_models/weights.best.VGG16.hdf5
+    Epoch 00020: val_loss improved from 6.87866 to 6.82195, saving model to saved_models/weights.best.VGG16.hdf5
 
 
 
 
 
-    <keras.callbacks.History at 0x1a44e5b160>
+    <keras.callbacks.History at 0x1a41a01ac8>
 
 
 
@@ -718,7 +753,7 @@ test_accuracy = 100*np.sum(np.array(VGG16_predictions)==np.argmax(test_targets, 
 print('Test accuracy: %.4f%%' % test_accuracy)
 ```
 
-    Test accuracy: 46.1722%
+    Test accuracy: 48.0861%
 
 
 ### Predict Dog Breed with the Model
@@ -782,7 +817,7 @@ __Question 5:__ Outline the steps you took to get to your final CNN architecture
 
 __Answer:__ 
 
-I used the `Xception` model, which gives nice results. The CNN used is similar to before with one less Dense layer and slightly higher Dropout rate to avoid overfitting, but gaining performance from one less layer.
+I used the `Xception` model, which gives nice results. The CNN used is similar to before with one less Dense layer and slightly higher Dropout rate to avoid overfitting, but gaining performance from one less layer. Due to the bigger amount of Total Params, this is a good candidate to use transfer learning to speed up te tranining time.
 
 
 
@@ -802,13 +837,13 @@ Xception_model.summary()
     _________________________________________________________________
     Layer (type)                 Output Shape              Param #   
     =================================================================
-    global_average_pooling2d_20  (None, 2048)              0         
+    global_average_pooling2d_11  (None, 2048)              0         
     _________________________________________________________________
-    dense_38 (Dense)             (None, 1024)              2098176   
+    dense_16 (Dense)             (None, 1024)              2098176   
     _________________________________________________________________
-    dropout_21 (Dropout)         (None, 1024)              0         
+    dropout_6 (Dropout)          (None, 1024)              0         
     _________________________________________________________________
-    dense_39 (Dense)             (None, 133)               136325    
+    dense_17 (Dense)             (None, 133)               136325    
     =================================================================
     Total params: 2,234,501
     Trainable params: 2,234,501
@@ -844,31 +879,31 @@ Xception_model.fit(train_Xception, train_targets,
 
     Train on 6680 samples, validate on 835 samples
     Epoch 1/5
-    6680/6680 [==============================] - 14s 2ms/step - loss: 1.3595 - acc: 0.6656 - val_loss: 0.7323 - val_acc: 0.7844
+    6680/6680 [==============================] - 7s 998us/step - loss: 0.4187 - acc: 0.8861 - val_loss: 0.8088 - val_acc: 0.8228
     
-    Epoch 00001: val_loss improved from inf to 0.73226, saving model to saved_models/weights.best.Xception.hdf5
+    Epoch 00001: val_loss improved from inf to 0.80878, saving model to saved_models/weights.best.Xception.hdf5
     Epoch 2/5
-    6680/6680 [==============================] - 7s 1ms/step - loss: 0.6822 - acc: 0.8078 - val_loss: 0.7200 - val_acc: 0.8036
+    6680/6680 [==============================] - 6s 874us/step - loss: 0.3431 - acc: 0.9042 - val_loss: 0.7878 - val_acc: 0.8371
     
-    Epoch 00002: val_loss improved from 0.73226 to 0.72005, saving model to saved_models/weights.best.Xception.hdf5
+    Epoch 00002: val_loss improved from 0.80878 to 0.78777, saving model to saved_models/weights.best.Xception.hdf5
     Epoch 3/5
-    6680/6680 [==============================] - 7s 1ms/step - loss: 0.5547 - acc: 0.8437 - val_loss: 0.6811 - val_acc: 0.8192
+    6680/6680 [==============================] - 5s 776us/step - loss: 0.3090 - acc: 0.9189 - val_loss: 0.8694 - val_acc: 0.8275
     
-    Epoch 00003: val_loss improved from 0.72005 to 0.68115, saving model to saved_models/weights.best.Xception.hdf5
+    Epoch 00003: val_loss did not improve from 0.78777
     Epoch 4/5
-    6680/6680 [==============================] - 8s 1ms/step - loss: 0.4834 - acc: 0.8626 - val_loss: 0.8405 - val_acc: 0.8060
+    6680/6680 [==============================] - 5s 798us/step - loss: 0.2838 - acc: 0.9246 - val_loss: 0.8649 - val_acc: 0.8311
     
-    Epoch 00004: val_loss did not improve from 0.68115
+    Epoch 00004: val_loss did not improve from 0.78777
     Epoch 5/5
-    6680/6680 [==============================] - 8s 1ms/step - loss: 0.4315 - acc: 0.8787 - val_loss: 0.6993 - val_acc: 0.8347
+    6680/6680 [==============================] - 6s 907us/step - loss: 0.2624 - acc: 0.9298 - val_loss: 0.9795 - val_acc: 0.8395
     
-    Epoch 00005: val_loss did not improve from 0.68115
+    Epoch 00005: val_loss did not improve from 0.78777
 
 
 
 
 
-    <keras.callbacks.History at 0x1a965297f0>
+    <keras.callbacks.History at 0x1a35b3b2b0>
 
 
 
@@ -896,7 +931,7 @@ test_accuracy = 100 * np.sum(np.array(transfer_predictions) == np.argmax(test_ta
 print(f'Test acc: {test_accuracy}')
 ```
 
-    Test acc: 81.9377990430622
+    Test acc: 83.13397129186603
 
 
 ### (IMPLEMENTATION) Predict Dog Breed with the Model
@@ -1002,7 +1037,9 @@ for img in sample_files:
     ['images/sample_human_output.png' 'images/sample_dog_output.png'
      'images/Labrador_retriever_06449.jpg'
      'images/American_water_spaniel_00648.jpg'
-     'images/Curly-coated_retriever_03896.jpg' 'images/Brittany_02625.jpg'
+     'images/Curly-coated_retriever_03896.jpg'
+     'images/istockphoto-910856488-612x612.jpg'
+     'images/istockphoto-183758982-612x612.jpg' 'images/Brittany_02625.jpg'
      'images/Labrador_retriever_06457.jpg'
      'images/Labrador_retriever_06455.jpg' 'images/sample_cnn.png'
      'images/Welsh_springer_spaniel_08203.jpg']
@@ -1012,7 +1049,7 @@ for img in sample_files:
 ![png](output_65_1.png)
 
 
-    I found a HUMAN of breed Havanese.
+    I found a HUMAN of breed Australian_shepherd.
 
 
 
@@ -1033,7 +1070,7 @@ for img in sample_files:
 ![png](output_65_7.png)
 
 
-    I found a DOG of breed Curly-coated_retriever.
+    I found a DOG of breed American_water_spaniel.
 
 
 
@@ -1047,35 +1084,61 @@ for img in sample_files:
 ![png](output_65_11.png)
 
 
-    I found a DOG of breed Brittany.
+    I found a HUMAN of breed Dachshund.
 
 
 
 ![png](output_65_13.png)
 
 
-    I found a DOG of breed Labrador_retriever.
+    ERROR: No human or dog found!
 
 
 
 ![png](output_65_15.png)
 
 
-    I found a DOG of breed Labrador_retriever.
+    I found a DOG of breed Brittany.
 
 
 
 ![png](output_65_17.png)
 
 
-    ERROR: No human or dog found!
+    I found a DOG of breed Labrador_retriever.
 
 
 
 ![png](output_65_19.png)
 
 
+    I found a DOG of breed Chesapeake_bay_retriever.
+
+
+
+![png](output_65_21.png)
+
+
+    ERROR: No human or dog found!
+
+
+
+![png](output_65_23.png)
+
+
     I found a DOG of breed Welsh_springer_spaniel.
+
+
+
+```python
+"The results are failry OK. It seems that it has more trouble for photos that the dog or human head is not front facing "
+```
+
+
+
+
+    'The results are failry OK. It seems that it has more trouble for photos that the dog or human head is not front facing '
+
 
 
 
